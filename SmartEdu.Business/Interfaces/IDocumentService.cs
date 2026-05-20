@@ -1,4 +1,5 @@
-﻿using SmartEdu.Shared.Entities;
+﻿using Microsoft.AspNetCore.Http;
+using SmartEdu.Shared.Entities;
 
 namespace SmartEdu.Business.Interfaces
 {

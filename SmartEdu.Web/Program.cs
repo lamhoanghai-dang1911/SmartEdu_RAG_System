@@ -20,8 +20,9 @@ namespace SmartEdu.Web
             builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             builder.Services.AddScoped<IDocumentService, DocumentService>();
             builder.Services.AddScoped<IChatService, ChatService>();
+            // HttpClient factory for calling OpenAI
+            builder.Services.AddHttpClient();
             builder.Services.AddScoped<ISubjectService, SubjectService>();
-            builder.Services.AddScoped<IDocumentService, DocumentService>();
 
             var app = builder.Build();
 

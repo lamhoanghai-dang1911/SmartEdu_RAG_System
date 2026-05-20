@@ -87,8 +87,16 @@ public class DocumentController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> TriggerEmbedding(int id)
     {
-        await _documentService.TriggerEmbeddingAsync(id);
-        TempData["Success"] = "Đã kích hoạt xử lý Embedding!";
+        try
+        {
+            await _documentService.TriggerEmbeddingAsync(id);
+            TempData["Success"] = "Đã kích hoạt xử lý Embedding thành công!";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = $"Lỗi khi gọi AI: {ex.Message}";
+        }
+
         return RedirectToAction(nameof(Index));
     }
 }

@@ -17,9 +17,18 @@
         </div>
     }
 
-    {{!-- Filter theo môn học --}}
-    <form method="get" class="row g-2 mb-3">
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @* Filter theo môn học *@
+    <form method="get" class="row g-2 mb-3 align-items-center">
         <div class="col-auto">
+            <label class="form-label small mb-0">Lọc theo môn</label>
             <select name="subjectId" asp-items="ViewBag.Subjects"
                     class="form-select" onchange="this.form.submit()">
                 <option value="">-- Tất cả môn học --</option>
