@@ -30,6 +30,27 @@ namespace SmartEdu.Web
 
             builder.Services.Configure<HuggingFaceSettings>(
                 builder.Configuration.GetSection("HuggingFace"));
+            builder.Services.AddScoped<ChunkingBenchmarkService>();
+            builder.Services.AddScoped<EmbeddingBenchmarkService>();
+            builder.Services.AddScoped<RBLComparisonService>();
+            builder.Services.AddScoped<IBenchmarkService, EmbeddingBenchmarkService>();
+            builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Tự động chuyển Enum sang dạng chữ trong JSON
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
+            builder.Services.AddHttpClient("HuggingFace", client => {
+                // Use the API inference base URL. We'll build the final models/... URI in the service to avoid
+                // accidental malformed URLs when combining BaseAddress and relative paths.
+                client.BaseAddress = new Uri("https://api-inference.huggingface.co/");
+                var token = builder.Configuration["HuggingFace:Token"];
+                if (!string.IsNullOrEmpty(token))
+                {
+                    // Set Authorization header using AuthenticationHeaderValue to ensure correct formatting
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+            });
 
             var app = builder.Build();
 

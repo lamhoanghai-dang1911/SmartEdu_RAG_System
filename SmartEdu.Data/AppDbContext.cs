@@ -12,6 +12,7 @@ namespace SmartEdu.Data
         public DbSet<DocumentChunk> DocumentChunks => Set<DocumentChunk>();
         public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+        public DbSet<BenchmarkResult> BenchmarkResults { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

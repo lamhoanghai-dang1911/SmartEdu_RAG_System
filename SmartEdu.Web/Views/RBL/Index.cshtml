@@ -1,0 +1,167 @@
+﻿@{
+    ViewData["Title"] = "RBL Research Dashboard";
+}
+
+<div class="container-fluid py-4" style="background-color: #f8f9fa; min-height: 100vh;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-navy"><i class="fas fa-chart-line me-2"></i>RBL Benchmarking Analytics</h2>
+        <div class="d-flex gap-2">
+            <button class="btn btn-success shadow-sm" onclick="runBenchmark()">
+                <i class="fas fa-play me-1"></i> Chạy Benchmark
+            </button>
+            <button class="btn btn-primary shadow-sm" onclick="fetchData()">
+                <i class="fas fa-sync-alt me-1"></i> Làm mới dữ liệu
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 text-center">
+                <small class="text-muted text-uppercase fw-bold">Avg. Precision</small>
+                <h2 class="mb-0 text-primary" id="avg-precision">0.00</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 text-center">
+                <small class="text-muted text-uppercase fw-bold">Avg. Recall</small>
+                <h2 class="mb-0 text-success" id="avg-recall">0.00</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 text-center">
+                <small class="text-muted text-uppercase fw-bold">Avg. F1 Score</small>
+                <h2 class="mb-0 text-info" id="avg-f1">0.00</h2>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 text-center">
+                <small class="text-muted text-uppercase fw-bold">Avg. Latency (ms)</small>
+                <h2 class="mb-0 text-danger" id="avg-latency">0</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 p-4">
+                <h5 class="fw-bold mb-4">So sánh hiệu năng các Model</h5>
+                <canvas id="performanceChart" height="150"></canvas>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                <h5 class="fw-bold mb-4">Tỉ lệ Chiến lược Chunking</h5>
+                <canvas id="strategyChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let performanceChart, strategyChart;
+
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/rbl/dashboard/results');
+                const data = await response.json();
+                renderDashboard(data);
+            } catch (error) {
+                console.error("Lỗi khi fetch dữ liệu:", error);
+            }
+        }
+
+        async function runBenchmark() {
+    // Thông báo cho người dùng
+    const btn = event.target;
+    btn.disabled = true; // Khóa nút để tránh bấm nhiều lần
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Đang chạy...';
+
+    // Dữ liệu giả lập - bạn có thể thay thế bằng dữ liệu từ form sau này
+    const request = {
+        datasetId: "test-set-01",
+        chunkStrategies: ["FixedSize"], 
+        embeddingModels: ["MultilingualE5Base"],
+        numQueries: 5
+    };
+
+    try {
+        const response = await fetch('/api/rbl/dashboard/run-benchmark', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(request)
+        });
+
+        if (response.ok) {
+            alert("Chạy Benchmark thành công!");
+            await fetchData(); // Tự động load lại dữ liệu mới lên biểu đồ
+        } else {
+            const errorText = await response.text();
+            alert("Lỗi: " + errorText);
+        }
+    } catch (error) {
+        console.error("Lỗi khi chạy benchmark:", error);
+        alert("Có lỗi xảy ra, kiểm tra Console để biết chi tiết.");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play me-1"></i> Chạy Benchmark';
+    }
+}
+
+        function renderDashboard(data) {
+            // Tính toán KPIs
+            const avgP = data.reduce((a, b) => a + b.precision, 0) / data.length;
+            const avgR = data.reduce((a, b) => a + b.recall, 0) / data.length;
+            const avgF = data.reduce((a, b) => a + b.f1, 0) / data.length;
+            const avgL = data.reduce((a, b) => a + b.latencyMs, 0) / data.length;
+
+            document.getElementById('avg-precision').innerText = avgP.toFixed(2);
+            document.getElementById('avg-recall').innerText = avgR.toFixed(2);
+            document.getElementById('avg-f1').innerText = avgF.toFixed(2);
+            document.getElementById('avg-latency').innerText = Math.round(avgL);
+
+            // Vẽ Performance Chart (Bar)
+            const ctx1 = document.getElementById('performanceChart').getContext('2d');
+            if(performanceChart) performanceChart.destroy();
+            performanceChart = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.modelName),
+                    datasets: [{
+                        label: 'F1 Score',
+                        data: data.map(d => d.f1),
+                        backgroundColor: '#4e73df',
+                        borderRadius: 8
+                    }]
+                },
+                options: { plugins: { legend: { display: false } } }
+            });
+
+            // Vẽ Strategy Chart (Doughnut)
+            const ctx2 = document.getElementById('strategyChart').getContext('2d');
+            const strategies = [...new Set(data.map(d => d.chunkStrategy))];
+            if(strategyChart) strategyChart.destroy();
+            strategyChart = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: strategies,
+                    datasets: [{
+                        data: strategies.map(s => data.filter(d => d.chunkStrategy === s).length),
+                        backgroundColor: ['#4e73df', '#1cc88a', '#f6c23e', '#e74a3b']
+                    }]
+                }
+            });
+        }
+
+        // Tự động load khi trang mở
+        document.addEventListener('DOMContentLoaded', fetchData);
+    </script>
+}
+
+<style>
+    .text-navy { color: #001f3f; }
+    .card { transition: transform 0.2s; }
+    .card:hover { transform: translateY(-5px); }
+</style>

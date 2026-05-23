@@ -84,6 +84,22 @@
 
         .site-footer a { color: rgba(255,255,255,0.9); }
         .site-footer a:hover { color: #ffffff; text-decoration: underline; }
+        /* Markdown chat content styling: preserve newlines and spacing */
+        .chat-message-content {
+            white-space: pre-wrap; /* preserve newlines and collapse sequences of whitespace */
+            word-break: break-word;
+            line-height: 1.6;
+            color: inherit;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .chat-message-content p { margin: 0 0 0.75rem; }
+        .chat-message-content ul,
+        .chat-message-content ol { margin: 0 0 0.75rem 1.25rem; }
+        .chat-message-content li { margin: 0.25rem 0; }
+        .chat-message-content code { background:#f5f5f5; padding:0.12rem 0.4rem; border-radius:4px; }
+        .chat-message-content pre { background:#0f1720; color:#e6eef8; padding:0.75rem; border-radius:6px; overflow:auto; }
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100 @(ViewBag.BodyClass ?? String.Empty)">
@@ -139,6 +155,33 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <!-- Markdown renderer and sanitizer (available globally) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+    <script>
+        // Configure marked: breaks=true turns single newlines into <br>
+        marked.setOptions({ gfm: true, breaks: true, smartLists: true, smartypants: false });
+
+        const _mdRenderer = new marked.Renderer();
+        _mdRenderer.link = function(href, title, text) {
+            const titleAttr = title ? ` title="${title}"` : '';
+            return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer">${text}</a>`;
+        };
+
+        // Render markdown string into a container and ensure the container has chat-message-content class
+        function renderChatMarkdown(containerOrSelector, markdownText) {
+            const container = (typeof containerOrSelector === 'string')
+                ? document.querySelector(containerOrSelector)
+                : containerOrSelector;
+            if (!container) return;
+            container.classList.add('chat-message-content');
+            const rawHtml = marked.parse(markdownText || '', { renderer: _mdRenderer });
+            const safe = DOMPurify.sanitize(rawHtml);
+            container.innerHTML = safe;
+        }
+        // Expose to window for convenience
+        window.renderChatMarkdown = renderChatMarkdown;
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
