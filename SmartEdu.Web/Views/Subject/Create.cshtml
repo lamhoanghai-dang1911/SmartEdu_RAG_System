@@ -1,8 +1,7 @@
-﻿@model SmartEdu.Shared.Entities.Subject
+﻿@model SmartEdu.Shared.DTOs.SubjectCreateDto
 @{
     ViewData["Title"] = "Thêm môn học";
 }
-
 <div class="container mt-4" style="max-width:600px">
     <h2>➕ Thêm môn học</h2>
     <hr />
@@ -19,6 +18,7 @@
         <div class="mb-3">
             <label asp-for="Description" class="form-label">Mô tả</label>
             <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
         </div>
 
         <button type="submit" class="btn btn-primary">💾 Lưu</button>

@@ -24,26 +24,10 @@ public class Repository<T> : IRepository<T> where T : class
         return entity;
     }
 
-    public async Task<IEnumerable<T>> GetAllAsync()
-    {
-        // If T inherits BaseEntity, filter out soft-deleted rows
-        if (typeof(BaseEntity).IsAssignableFrom(typeof(T)))
-        {
-            return await _dbSet.Where(e => !EF.Property<bool>(e, nameof(BaseEntity.IsDeleted))).ToListAsync();
-        }
-        return await _dbSet.ToListAsync();
-    }
-
-    public async Task<IEnumerable<T>> GetAllWithIncludeAsync(
-        params Expression<Func<T, object>>[] includes)
+    public async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>>? predicate = null)
     {
         IQueryable<T> query = _dbSet;
-        foreach (var include in includes)
-            query = query.Include(include);
-        if (typeof(BaseEntity).IsAssignableFrom(typeof(T)))
-        {
-            query = query.Where(e => !EF.Property<bool>(e, nameof(BaseEntity.IsDeleted)));
-        }
+        if (predicate != null) query = query.Where(predicate);
         return await query.ToListAsync();
     }
 
@@ -58,4 +42,27 @@ public class Repository<T> : IRepository<T> where T : class
 
     public async Task SaveChangesAsync()
         => await _context.SaveChangesAsync();
+
+    public async Task<IEnumerable<T>> GetAllWithIncludeAsync(
+    Expression<Func<T, bool>>? predicate = null,
+    params Expression<Func<T, object>>[] includes)
+    {
+        IQueryable<T> query = _dbSet;
+        foreach (var include in includes)
+        {
+            query = query.Include(include);
+        }
+
+        if (predicate != null)
+        {
+            query = query.Where(predicate);
+        }
+
+        if (typeof(BaseEntity).IsAssignableFrom(typeof(T)))
+        {
+            query = query.Where(e => !EF.Property<bool>(e, nameof(BaseEntity.IsDeleted)));
+        }
+
+        return await query.ToListAsync();
+    }
 }

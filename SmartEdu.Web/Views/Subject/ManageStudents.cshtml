@@ -1,0 +1,92 @@
+﻿@model (IEnumerable<SmartEdu.Shared.DTOs.UserDto> Enrolled, IEnumerable<SmartEdu.Shared.DTOs.UserDto> NotEnrolled)
+@{
+    var subject = ViewBag.Subject as SmartEdu.Shared.DTOs.SubjectDto;
+    ViewData["Title"] = $"Quản lý lớp: {subject?.Name}";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>👥 Quản lý Sinh viên môn: <span class="text-primary">@subject?.Name</span></h2>
+        <a asp-action="Index" class="btn btn-secondary">Quay lại danh sách môn</a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">✅ Đang học (@Model.Enrolled.Count())</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <tbody>
+                            @if (!Model.Enrolled.Any())
+                            {
+                                <tr><td class="text-center text-muted py-3">Chưa có sinh viên nào.</td></tr>
+                            }
+                            @foreach (var student in Model.Enrolled)
+                            {
+                                <tr>
+                                    <td class="align-middle fw-semibold">
+                                        @student.FullName <br />
+                                        <small class="text-muted">@student.Username</small>
+                                    </td>
+                                    <td class="text-end align-middle px-3">
+                                        <form asp-action="RemoveStudent" method="post" class="d-inline" onsubmit="return confirm('Xóa sinh viên này khỏi môn học?');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="subjectId" value="@subject?.Id" />
+                                            <input type="hidden" name="studentId" value="@student.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm border-secondary">
+                <div class="card-header bg-light text-dark">
+                    <h5 class="mb-0">➕ Thêm vào lớp (@Model.NotEnrolled.Count())</h5>
+                </div>
+                <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+                    <table class="table table-hover mb-0">
+                        <tbody>
+                            @if (!Model.NotEnrolled.Any())
+                            {
+                                <tr><td class="text-center text-muted py-3">Tất cả sinh viên đã được thêm vào môn này.</td></tr>
+                            }
+                            @foreach (var student in Model.NotEnrolled)
+                            {
+                                <tr>
+                                    <td class="align-middle fw-semibold">
+                                        @student.FullName <br />
+                                        <small class="text-muted">@student.Username</small>
+                                    </td>
+                                    <td class="text-end align-middle px-3">
+                                        <form asp-action="AssignStudent" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="subjectId" value="@subject?.Id" />
+                                            <input type="hidden" name="studentId" value="@student.Id" />
+                                            <button type="submit" class="btn btn-sm btn-primary">Thêm</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

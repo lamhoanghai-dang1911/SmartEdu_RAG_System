@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using SmartEdu.Business.Interfaces;
 using SmartEdu.Business.Services;
@@ -30,10 +31,6 @@ namespace SmartEdu.Web
 
             builder.Services.Configure<HuggingFaceSettings>(
                 builder.Configuration.GetSection("HuggingFace"));
-            builder.Services.AddScoped<ChunkingBenchmarkService>();
-            builder.Services.AddScoped<EmbeddingBenchmarkService>();
-            builder.Services.AddScoped<RBLComparisonService>();
-            builder.Services.AddScoped<IBenchmarkService, EmbeddingBenchmarkService>();
             builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -51,8 +48,28 @@ namespace SmartEdu.Web
                     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
                 }
             });
-
+            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+    });
+            builder.Services.AddScoped<IPermissionService, PermissionService>();
+            builder.Services.AddScoped<IAccountService, AccountService>();
             var app = builder.Build();
+
+            using (var scope = app.Services.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+                var context = services.GetRequiredService<AppDbContext>();
+
+                // Đảm bảo database đã được tạo (áp dụng migration)
+                context.Database.Migrate();
+
+                // Chạy seeder
+                DataSeeder.Seed(context);
+            }
 
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
@@ -66,7 +83,7 @@ namespace SmartEdu.Web
             app.UseStaticFiles();
 
             app.UseRouting();
-
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllerRoute(

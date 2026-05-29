@@ -12,7 +12,8 @@ namespace SmartEdu.Data
         public DbSet<DocumentChunk> DocumentChunks => Set<DocumentChunk>();
         public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
-        public DbSet<BenchmarkResult> BenchmarkResults { get; set; }
+        public DbSet<User> Users => Set<User>();
+        public DbSet<StudentSubject> StudentSubjects { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -26,6 +27,21 @@ namespace SmartEdu.Data
 
             modelBuilder.Entity<ChatMessage>()
                 .HasIndex(m => m.ChatSessionId);
+            modelBuilder.Entity<User>()
+                .Property(u => u.Role)
+                .HasConversion<string>();
+            modelBuilder.Entity<StudentSubject>()
+            .HasKey(ss => new { ss.StudentId, ss.SubjectId });
+
+            modelBuilder.Entity<StudentSubject>()
+                .HasOne(ss => ss.User)
+                .WithMany() 
+                .HasForeignKey(ss => ss.StudentId);
+
+            modelBuilder.Entity<StudentSubject>()
+                .HasOne(ss => ss.Subject)
+                .WithMany() 
+                .HasForeignKey(ss => ss.SubjectId);
 
             base.OnModelCreating(modelBuilder);
         }

@@ -1,0 +1,37 @@
+﻿@model SmartEdu.Shared.Entities.Document
+@{
+    ViewData["Title"] = "Cập nhật tiêu đề tài liệu";
+}
+
+<div class="container mt-4" style="max-width: 600px;">
+    <div class="card shadow-sm">
+        <div class="card-header bg-warning text-dark">
+            <h4 class="mb-0">✏️ Sửa tiêu đề tài liệu</h4>
+        </div>
+        <div class="card-body">
+            <form asp-action="Edit" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id" />
+
+                <div class="mb-3 text-muted">
+                    <small>
+                        <strong>File gốc:</strong> @Model.FileName <br />
+                        <strong>Môn học:</strong> @Model.Subject?.Name <br />
+                        <strong>Trạng thái:</strong> @Model.Status
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Tiêu đề tài liệu</label>
+                    <input type="text" name="title" value="@Model.Title" class="form-control" required />
+                    @Html.ValidationMessage("title", new { @class = "text-danger" })
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-warning">Lưu thay đổi</button>
+                    <a asp-action="Index" class="btn btn-secondary">Quay lại</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

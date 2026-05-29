@@ -1,15 +1,19 @@
-﻿namespace SmartEdu.Shared.DTOs
+﻿using SmartEdu.Shared.Enums;
+
+namespace SmartEdu.Shared.DTOs
 {
+    // 1. Tạo SmartEdu.Shared.DTOs.DocumentDto
     public class DocumentDto
     {
         public int Id { get; set; }
-        public string Title { get; set; } = string.Empty;
-        public string FileName { get; set; } = string.Empty;
-        public string FileType { get; set; } = string.Empty;
+        public string Title { get; set; }
+        public string FileName { get; set; }
+        public string FileType { get; set; }
         public long FileSize { get; set; }
-        public string Status { get; set; } = string.Empty;
         public int SubjectId { get; set; }
-        public string SubjectName { get; set; } = string.Empty;
+        public DocumentStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
+        // Có thể thêm SubjectName nếu cần hiển thị
+        public string SubjectName { get; set; }
     }
 }

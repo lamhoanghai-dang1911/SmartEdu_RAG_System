@@ -1,0 +1,24 @@
+﻿@model LoginViewModel
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-4 border p-4 shadow-sm bg-white rounded">
+            <h3 class="text-center mb-3">Đăng nhập SmartEdu</h3>
+            <form asp-action="Login" method="post">
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-2 fw-bold"></div>
+
+                <div class="mb-3">
+                    <label>Tên đăng nhập</label>
+                    <input asp-for="Username" class="form-control" required />
+                    <span asp-validation-for="Username" class="text-danger small"></span>
+                </div>
+                <div class="mb-3">
+                    <label>Mật khẩu</label>
+                    <input asp-for="Password" type="password" class="form-control" required />
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Đăng nhập</button>
+            </form>
+        </div>
+    </div>
+</div>

@@ -9,5 +9,6 @@
         public string? SubjectName { get; set; }
         public int MessageCount { get; set; }
         public DateTime CreatedAt { get; set; }
+
     }
 }

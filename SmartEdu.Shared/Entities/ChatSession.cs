@@ -7,6 +7,7 @@
         public int? SubjectId { get; set; }
         public Subject? Subject { get; set; }
         public ICollection<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
+        public int UserId { get; set; }
     }
 
     public class ChatMessage : BaseEntity

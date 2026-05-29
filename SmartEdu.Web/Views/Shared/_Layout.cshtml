@@ -116,22 +116,65 @@
                 </button>
                 <div class="navbar-collapse collapse d-sm-inline-flex">
                     <ul class="navbar-nav me-auto gap-3 align-items-center">
-                        <li class="nav-item">
-                            <a class="nav-link fs-5 px-3" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link fs-5 px-3" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link fs-5 px-3 d-flex align-items-center" asp-controller="Subject" asp-action="Index"><span class="fs-4 me-2" aria-hidden="true">📚</span> Môn học</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link fs-5 px-3 d-flex align-items-center" asp-controller="Document" asp-action="Index"><span class="fs-4 me-2" aria-hidden="true">📄</span> Tài liệu</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link fs-5 px-3 d-flex align-items-center" asp-controller="Chat" asp-action="Index"><span class="fs-4 me-2" aria-hidden="true">🤖</span> Chat RAG</a>
-                        </li>
+    <li class="nav-item">
+        <a class="nav-link fs-5 px-3" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+    </li>
+    @if (User.IsInRole("Admin"))
+    {
+        <li class="nav-item">
+            <a class="nav-link fs-5 px-3 d-flex align-items-center" asp-controller="Account" asp-action="ManageUsers">
+                <span class="fs-4 me-2" aria-hidden="true">👥</span> Quản lý tài khoản
+            </a>
+        </li>
+    }
+
+    @if (User.IsInRole("Lecturer") || User.IsInRole("Admin"))
+    {
+        <li class="nav-item">
+            <a class="nav-link fs-5 px-3 d-flex align-items-center" asp-controller="Subject" asp-action="Index">
+                <span class="fs-4 me-2" aria-hidden="true">📚</span> Quản lý môn học
+            </a>
+        </li>
+    }
+
+    @if (User.IsInRole("Lecturer") || User.IsInRole("Admin") || User.IsInRole("Student"))
+    {
+     <li class="nav-item">
+            <a class="nav-link fs-5 px-3 d-flex align-items-center" asp-controller="Document" asp-action="Index">
+                <span class="fs-4 me-2" aria-hidden="true">📄</span> Tài liệu
+            </a>
+    </li>                           
+     }
+
+    @if (User.IsInRole("Student"))
+    {
+        <li class="nav-item">
+            <a class="nav-link fs-5 px-3 d-flex align-items-center" asp-controller="Chat" asp-action="Index">
+                <span class="fs-4 me-2" aria-hidden="true">🤖</span> Chat RAG
+            </a>
+        </li>
+    }
                     </ul>
+
+<ul class="navbar-nav ms-auto align-items-center">
+    @if (User.Identity.IsAuthenticated)
+    {
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                @User.Identity.Name (@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value)
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                <li><a class="dropdown-item" asp-controller="Account" asp-action="Logout">Đăng xuất</a></li>
+            </ul>
+        </li>
+    }
+    else
+    {
+        <li class="nav-item">
+            <a class="nav-link btn btn-outline-light px-3" asp-controller="Account" asp-action="Login">Đăng nhập</a>
+        </li>
+    }
+</ul>
                 </div>
             </div>
         </nav>

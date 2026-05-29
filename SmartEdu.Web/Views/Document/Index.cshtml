@@ -6,7 +6,11 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>📄 Danh sách tài liệu</h2>
-        <a asp-action="Upload" class="btn btn-primary">⬆️ Upload tài liệu</a>
+        @if (User.IsInRole("Lecturer") || User.IsInRole("Admin"))
+        {
+            <a asp-action="Upload" class="btn btn-primary">⬆️ Upload tài liệu</a>
+        }
+        
     </div>
 
     @if (TempData["Success"] != null)
@@ -79,27 +83,25 @@
                     </td>
                     <td>@d.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
                     <td>
-                        <a asp-action="Details" asp-route-id="@d.Id"
-                           class="btn btn-sm btn-info">🔍</a>
+                        <a asp-action="Details" asp-route-id="@d.Id" class="btn btn-sm btn-info" title="Xem chi tiết">🔍</a>
+    
+                        <a asp-action="Download" asp-route-id="@d.Id" class="btn btn-sm btn-primary" title="Tải file gốc về máy">⬇️ Tải về</a>
 
-                        <form asp-action="TriggerEmbedding" asp-route-id="@d.Id"
-                              method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-sm btn-success"
-                                    title="Kích hoạt Embedding">
-                                ⚡
-                            </button>
-                        </form>
+                        @if (User.IsInRole("Lecturer") || User.IsInRole("Admin"))
+                        {
+                            <a asp-action="Edit" asp-route-id="@d.Id" class="btn btn-sm btn-warning" title="Sửa tiêu đề">✏️</a>
 
-                        <form asp-action="Delete" asp-route-id="@d.Id"
-                              method="post" class="d-inline"
-                              onsubmit="return confirm('Xóa tài liệu này?')">
-                            @Html.AntiForgeryToken()
-                            <button type="submit"
-                                    class="btn btn-sm btn-danger">
-                                🗑️
-                            </button>
-                        </form>
+                            <form asp-action="TriggerEmbedding" asp-route-id="@d.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-success" title="Kích hoạt Embedding">⚡</button>
+                            </form>
+
+                            <form asp-action="Delete" asp-route-id="@d.Id" method="post" class="d-inline"
+                                  onsubmit="return confirm('Xóa tài liệu này? Nếu muốn thay file, hãy xóa và upload lại.');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-danger" title="Xóa tài liệu">🗑️</button>
+                            </form>
+                        }
                     </td>
                 </tr>
             }

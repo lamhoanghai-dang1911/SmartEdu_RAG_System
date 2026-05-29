@@ -8,29 +8,24 @@
 }
 
 <style>
-    /* Chat panel with fixed height */
     .chat-panel {
-        /* You can adjust height to 80vh or calculate against header: */
         height: calc(100vh - 120px);
         display: flex;
         flex-direction: column;
     }
 
-    /* Messages area grows and scrolls */
     .chat-messages {
         flex: 1 1 auto;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
     }
 
-    /* Keep input area fixed visually at bottom of the panel */
     .chat-input-area {
         flex: 0 0 auto;
     }
 
-    /* Sidebar styling: fixed height, header fixed, list scrolls */
     .sidebar-panel {
-        height: calc(100vh - 120px); /* keep same height as chat-panel */
+        height: calc(100vh - 120px);
         display: flex;
         flex-direction: column;
     }
@@ -51,8 +46,6 @@
 
 <div class="container-fluid mt-3">
     <div class="row" style="height: calc(100vh - 120px)">
-
-        @* SIDEBAR: Lịch sử phiên *@
         <div class="col-md-3">
             <div class="sidebar-panel border-end d-flex flex-column">
 
@@ -86,13 +79,12 @@
             </div>
         </div>
 
-        @* MAIN: Khung chat *@
         <div class="col-md-9">
             <div class="chat-panel border d-flex flex-column">
 
-                @* Header *@
                 <div class="d-flex align-items-center gap-2 mb-2 p-2">
-                    <h5 class="mb-0">🤖 SmartEdu RAG Chatbot</h5>
+                    <h5 id="chatTitle" class="mb-0">🤖 @ViewBag.CurrentSessionTitle</h5>
+    
                     <select id="subjectSelect" asp-items="ViewBag.Subjects"
                             class="form-select form-select-sm w-auto">
                         <option value="">-- Tất cả môn học --</option>
@@ -115,8 +107,7 @@
                         if (msg.Role == "user")
                         {
                             <div class="d-flex justify-content-end mb-2">
-                                <div class="bg-primary text-white rounded p-2 px-3"
-                                     style="max-width:75%">
+                                <div class="bg-primary text-white rounded p-2 px-3 chat-message-content" style="max-width:75%">
                                     @msg.Content
                                 </div>
                             </div>
@@ -124,12 +115,10 @@
                         else
                         {
                             <div class="d-flex justify-content-start mb-2">
-                                <div class="bg-white border rounded p-2 px-3"
-                                     style="max-width:75%">
-                                    <small class="text-muted d-block mb-1">
-                                        🤖 SmartEdu AI
-                                    </small>
-                                    @msg.Content
+                                <div class="bg-white border rounded p-2 px-3 chat-message-content" style="max-width:75%">
+                                    <small class="text-muted d-block mb-1">🤖 SmartEdu AI</small>
+                                    @* Dùng thẻ div để render markdown cũ *@
+                                    <div class="markdown-body">@Html.Raw(msg.Content.Replace("\n", "<br/>"))</div>
                                 </div>
                             </div>
                         }
@@ -148,7 +137,7 @@
                         <button id="sendBtn" class="btn btn-primary" type="button">➤ Gửi</button>
                     </div>
 
-                    <small class="text-muted mt-1 d-block">
+                    <small class="text-muted mt-1 d-block d-none">
                         Enter để gửi • Shift+Enter xuống dòng • Session: <code>@currentSessionId</code>
                     </small>
                 </div>
@@ -293,6 +282,13 @@
                 sendMessage();
             }
             // Shift+Enter => allow newline
+        });
+            document.addEventListener("DOMContentLoaded", function() {
+            const selectEl = document.getElementById("subjectSelect");
+            const selectedValue = "@(ViewBag.Subjects?.SelectedValue ?? "")";
+            if (selectedValue) {
+                selectEl.value = selectedValue;
+            }
         });
     </script>
 }
