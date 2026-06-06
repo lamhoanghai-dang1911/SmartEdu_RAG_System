@@ -5,13 +5,12 @@ Hệ thống hỗ trợ học tập thông minh dựa trên kiến trúc **RAG (
 ## 🌟 Tính năng chính
 - **Quản lý tài liệu:** Hỗ trợ upload file bài giảng (PDF, DOCX). Tự động trích xuất và phân nhỏ văn bản (Chunking).
 - **Hỏi đáp thông minh:** Chatbot trả lời sinh viên dựa trên ngữ cảnh tài liệu thực tế của môn học, có trích dẫn nguồn gốc rõ ràng.
-- **Nghiên cứu RBL (Research-Based Learning):** Module thực nghiệm so sánh chất lượng câu trả lời giữa các mô hình AI khác nhau.
 - **Trải nghiệm tức thì:** Giao diện trực quan, phản hồi thời gian thực.
 
 ## 🏗 Kiến trúc & Công nghệ
 - **Mô hình:** 3-Layers Architecture (Web - Business - Data).
-- **Công nghệ lõi:** .NET 8.0, PostgreSQL/MySQL (Vector Storage).
-- **AI & Frontend:** OpenAI API / PhoBERT, Bootstrap 5, AJAX, SignalR.
+- **Công nghệ lõi:** .NET 8.0, MySQL.
+- **AI & Frontend:** Gemini, Bootstrap 5.
 
 ---
 
