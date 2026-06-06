@@ -28,8 +28,7 @@
 
         <div class="mb-3">
             <label class="form-label">Môn học</label>
-            <select name="subjectId" asp-items="ViewBag.Subjects"
-                    class="form-select" required>
+            <select name="subjectId" class="form-select" required>
                 <option value="">-- Chọn môn học --</option>
             </select>
         </div>
@@ -56,6 +55,27 @@
             const select = document.querySelector('select[name="subjectId"]');
             const uploadBtn = document.getElementById('uploadBtn');
             const alertEl = document.getElementById('uploadPermissionAlert');
+
+            // load assigned subjects for the current user
+            async function loadSubjects() {
+                try {
+                    const resp = await fetch('/Document/GetAssignedSubjects', { credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' } });
+                    if (!resp.ok) return;
+                    const items = await resp.json();
+                    // clear existing options except placeholder
+                    select.querySelectorAll('option:not([value=""])').forEach(o => o.remove());
+                    items.forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s.id;
+                        opt.textContent = s.name;
+                        select.appendChild(opt);
+                    });
+                    // if only one subject available, preselect it
+                    if (select.options.length === 2) select.selectedIndex = 1;
+                } catch (e) {
+                    console.error('Failed to load subjects', e);
+                }
+            }
 
             async function check(subjectId) {
                 if (!subjectId) {
@@ -85,8 +105,10 @@
             }
 
             select.addEventListener('change', function(){ check(this.value); });
-            // initial check if a subject preselected (small delay to ensure items bound)
-            if (select.value) setTimeout(()=>check(select.value), 150);
+            // load subjects then run initial permission check
+            loadSubjects().then(()=>{
+                if (select.value) setTimeout(()=>check(select.value), 150);
+            });
         })();
     </script>
 }

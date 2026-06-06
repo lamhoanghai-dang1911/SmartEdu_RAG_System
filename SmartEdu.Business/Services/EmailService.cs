@@ -34,5 +34,26 @@ namespace SmartEdu.Business.Services
             await smtp.SendAsync(email);
             await smtp.DisconnectAsync(true);
         }
+
+        public async Task SendEnrollmentNotificationAsync(string toEmail, string fullName, string subjectName)
+        {
+            var email = new MimeMessage();
+            email.From.Add(MailboxAddress.Parse(_config["EmailSettings:From"]));
+            email.To.Add(MailboxAddress.Parse(toEmail));
+            email.Subject = $"Thông báo: Đã được thêm vào môn {subjectName}";
+
+            email.Body = new TextPart(MimeKit.Text.TextFormat.Html)
+            {
+                Text = $@"<h3>Chào {fullName},</h3>
+                      <p>Bạn đã được thêm vào môn học <b>{subjectName}</b> trên hệ thống SmartEdu.</p>
+                      <p>Vui lòng đăng nhập để xem thông tin chi tiết và tài liệu liên quan.</p>"
+            };
+
+            using var smtp = new SmtpClient();
+            await smtp.ConnectAsync(_config["EmailSettings:Host"], int.Parse(_config["EmailSettings:Port"]), MailKit.Security.SecureSocketOptions.StartTls);
+            await smtp.AuthenticateAsync(_config["EmailSettings:User"], _config["EmailSettings:Pass"]);
+            await smtp.SendAsync(email);
+            await smtp.DisconnectAsync(true);
+        }
     }
 }

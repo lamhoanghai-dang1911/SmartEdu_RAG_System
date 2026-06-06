@@ -176,9 +176,27 @@ public class DocumentController : Controller
     [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<IActionResult> Upload()
     {
-        var subjects = await _subjectService.GetAllAsync();
-        ViewBag.Subjects = new SelectList(subjects, "Id", "Name");
+            var subjects = User.IsInRole("Admin")
+                ? await _subjectService.GetAllAsync()
+                : await _subjectService.GetSubjectsByLecturerIdAsync(User.GetUserId());
+            ViewBag.Subjects = new SelectList(subjects, "Id", "Name");
         return View();
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Lecturer, Admin")]
+    public async Task<IActionResult> GetAssignedSubjects()
+    {
+        int userId = User.GetUserId();
+        bool isAdmin = User.IsInRole("Admin");
+
+        IEnumerable<SmartEdu.Shared.DTOs.SubjectDto> subjects;
+        if (isAdmin)
+            subjects = await _subjectService.GetAllAsync();
+        else
+            subjects = await _subjectService.GetSubjectsByLecturerIdAsync(userId);
+
+        return Json(subjects);
     }
 
     [HttpPost]
@@ -209,9 +227,24 @@ public class DocumentController : Controller
         catch (InvalidOperationException ex)
         {
             ModelState.AddModelError("file", ex.Message);
-            var subjects = await _subjectService.GetAllAsync();
+            var subjects = User.IsInRole("Admin")
+                ? await _subjectService.GetAllAsync()
+                : await _subject_service_getsubjects_for_current_user();
             ViewBag.Subjects = new SelectList(subjects, "Id", "Name");
             return View();
+        }
+    }
+
+    // helper wrapper to avoid repeating code and protect against exceptions
+    private async Task<IEnumerable<SmartEdu.Shared.DTOs.SubjectDto>> _subject_service_getsubjects_for_current_user()
+    {
+        try
+        {
+            return await _subjectService.GetSubjectsByLecturerIdAsync(User.GetUserId());
+        }
+        catch
+        {
+            return Enumerable.Empty<SmartEdu.Shared.DTOs.SubjectDto>();
         }
     }
 

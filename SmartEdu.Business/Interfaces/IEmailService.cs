@@ -9,5 +9,6 @@ namespace SmartEdu.Business.Interfaces
     public interface IEmailService
     {
         Task SendWelcomeEmailAsync(string toEmail, string fullName, string username, string password);
+        Task SendEnrollmentNotificationAsync(string toEmail, string fullName, string subjectName);
     }
 }

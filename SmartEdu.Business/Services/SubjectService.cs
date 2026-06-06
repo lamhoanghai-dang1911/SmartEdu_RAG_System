@@ -83,6 +83,23 @@ namespace SmartEdu.Business.Services
             return item != null;
         }
 
+        public async Task<IEnumerable<SubjectDto>> GetSubjectsByLecturerIdAsync(int lecturerId)
+        {
+            var rels = await _uow.LecturerSubjects.GetAllWithIncludeAsync(ls => ls.LecturerId == lecturerId, ls => ls.Subject);
+            var subjects = rels.Where(r => r.Subject != null && !r.Subject.IsDeleted)
+                                .Select(r => r.Subject)
+                                .Distinct()
+                                .Select(s => new SubjectDto
+                                {
+                                    Id = s.Id,
+                                    Name = s.Name,
+                                    Description = s.Description,
+                                    CreatedAt = s.CreatedAt
+                                });
+
+            return subjects;
+        }
+
         public async Task RemoveLecturerFromSubject(int lecturerId, int subjectId)
         {
             var rels = await _uow.LecturerSubjects.GetAllAsync();
@@ -300,17 +317,20 @@ namespace SmartEdu.Business.Services
                 var currentEnrollments = await _uow.StudentSubjects.GetAllAsync(ss => ss.SubjectId == subjectId);
                 var enrolledStudentIds = currentEnrollments.Select(ss => ss.StudentId).ToHashSet();
 
+                var newlyEnrolledIds = new List<int>();
                 foreach (var studentId in allStudentIds)
                 {
                     if (!enrolledStudentIds.Contains(studentId))
                     {
                         await _uow.StudentSubjects.AddAsync(new StudentSubject { StudentId = studentId, SubjectId = subjectId });
+                        newlyEnrolledIds.Add(studentId);
                     }
                 }
 
                 await _uow.SaveChangesAsync();
                 await _uow.CommitTransactionAsync();
 
+                // Send welcome emails for newly created accounts
                 foreach (var account in generatedAccountsLog)
                 {
                     try
@@ -321,6 +341,23 @@ namespace SmartEdu.Business.Services
                     catch (Exception ex)
                     {
                         Console.WriteLine($"Lỗi gửi mail cho {account.Email}: {ex.Message}");
+                    }
+                }
+
+                // Send enrollment notification to all students who were newly enrolled into this subject
+                if (newlyEnrolledIds.Any())
+                {
+                    var usersToNotify = await _uow.Users.GetAllAsync(u => newlyEnrolledIds.Contains(u.Id));
+                    foreach (var u in usersToNotify)
+                    {
+                        try
+                        {
+                            await _emailService.SendEnrollmentNotificationAsync(u.Email, u.FullName, subject.Name);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Lỗi gửi mail thông báo nhập học cho {u.Email}: {ex.Message}");
+                        }
                     }
                 }
             }
