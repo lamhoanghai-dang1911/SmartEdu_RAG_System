@@ -11,5 +11,8 @@ namespace SmartEdu.Shared.Entities
         public string FullName { get; set; }
         public UserRole Role { get; set; }
         public bool IsDeleted { get; set; } = false;
+        public string Email { get; set; } = string.Empty;
+        public string? StudentCode { get; set; }
+        public bool RequirePasswordChange { get; set; } = false;
     }
 }

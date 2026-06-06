@@ -31,6 +31,12 @@ namespace SmartEdu.Web
 
             builder.Services.Configure<HuggingFaceSettings>(
                 builder.Configuration.GetSection("HuggingFace"));
+            builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        // Chuyển toàn bộ JSON sang camelCase
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
             builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -57,6 +63,14 @@ namespace SmartEdu.Web
     });
             builder.Services.AddScoped<IPermissionService, PermissionService>();
             builder.Services.AddScoped<IAccountService, AccountService>();
+            builder.Services.AddScoped<IEmailService, EmailService>();
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            // Register filter for requiring password change after first login
+            builder.Services.AddScoped<SmartEdu.Web.Filters.RequirePasswordChangeFilter>();
+            builder.Services.AddControllersWithViews(options =>
+            {
+                options.Filters.AddService<SmartEdu.Web.Filters.RequirePasswordChangeFilter>();
+            });
             var app = builder.Build();
 
             using (var scope = app.Services.CreateScope())

@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ExcelDataReader;
+using System.Data;
 using SmartEdu.Business.Interfaces;
 using SmartEdu.Shared.DTOs;
 using SmartEdu.Shared.Entities;
@@ -123,6 +125,70 @@ namespace SmartEdu.Web.Controllers
             TempData["Success"] = "Đã xóa sinh viên khỏi môn học!";
 
             return RedirectToAction(nameof(ManageStudents), new { id = subjectId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ImportStudents(int id, IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("Vui lòng chọn một file hợp lệ.");
+
+            if (!file.FileName.EndsWith(".xlsx"))
+                return BadRequest("Chỉ hỗ trợ định dạng .xlsx");
+
+            var studentList = new List<StudentImportDto>();
+
+            // Use ExcelDataReader to avoid EPPlus license requirements for reading .xlsx files
+            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+            using (var stream = file.OpenReadStream())
+            using (var reader = ExcelDataReader.ExcelReaderFactory.CreateReader(stream))
+            {
+                var conf = new ExcelDataReader.ExcelDataSetConfiguration
+                {
+                    ConfigureDataTable = _ => new ExcelDataReader.ExcelDataTableConfiguration { UseHeaderRow = true }
+                };
+
+                var dataSet = reader.AsDataSet(conf);
+                if (dataSet.Tables.Count == 0) return BadRequest("File Excel không có sheet nào.");
+
+                var table = dataSet.Tables[0];
+
+                // Find required columns by header
+                int codeCol = -1, nameCol = -1, emailCol = -1;
+                for (int c = 0; c < table.Columns.Count; c++)
+                {
+                    var header = table.Columns[c].ColumnName?.ToString().Trim().ToLower() ?? "";
+                    if (header == "student code") codeCol = c;
+                    else if (header == "full name") nameCol = c;
+                    else if (header == "email") emailCol = c;
+                }
+
+                if (codeCol == -1 || nameCol == -1 || emailCol == -1)
+                    return BadRequest("File Excel không đúng định dạng. Cần có các cột: 'Student Code', 'Full Name', 'Email'");
+
+                foreach (System.Data.DataRow row in table.Rows)
+                {
+                    studentList.Add(new StudentImportDto
+                    {
+                        StudentCode = row[codeCol]?.ToString() ?? "",
+                        FullName = row[nameCol]?.ToString() ?? "",
+                        Email = row[emailCol]?.ToString() ?? ""
+                    });
+                }
+            }
+
+            try
+            {
+                await _subjectService.ImportStudentsAsync(id, studentList);
+                TempData["Success"] = $"Import thành công {studentList.Count} sinh viên.";
+                return RedirectToAction("ManageStudents", new { id = id });
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "Lỗi khi xử lý file: " + ex.Message;
+                return RedirectToAction("ManageStudents", new { id = id });
+            }
         }
     }
 }

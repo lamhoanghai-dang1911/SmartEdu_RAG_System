@@ -18,13 +18,35 @@
         </div>
     }
 
+    <div class="card shadow-sm border-info mb-4">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">📥 Import danh sách sinh viên (Excel)</h5>
+            <a href="~/templates/StudentImportTemplate.xlsx" class="btn btn-sm btn-light" download>Tải file mẫu</a>
+        </div>
+        <div class="card-body">
+            <form asp-action="ImportStudents" method="post" enctype="multipart/form-data" class="row g-3 align-items-center">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@subject?.Id" />
+                <div class="col-auto">
+                    <input type="file" name="file" class="form-control" accept=".xlsx" required />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-info text-white">Bắt đầu Import</button>
+                </div>
+                <div class="col-auto">
+                    <small class="text-muted">Chỉ hỗ trợ file .xlsx theo mẫu.</small>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-md-6">
             <div class="card shadow-sm border-success">
                 <div class="card-header bg-success text-white">
                     <h5 class="mb-0">✅ Đang học (@Model.Enrolled.Count())</h5>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
                     <table class="table table-hover mb-0">
                         <tbody>
                             @if (!Model.Enrolled.Any())

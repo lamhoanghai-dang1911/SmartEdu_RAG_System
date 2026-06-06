@@ -14,5 +14,6 @@ namespace SmartEdu.Business.Interfaces
         Task UpdateTitleAsync(int id, string newTitle);
         Task<DocumentDownloadDto?> GetFileForDownloadAsync(int id);
         Task<bool> HasReadyDocumentsAsync(int subjectId);
+        Task<IEnumerable<SmartEdu.Shared.DTOs.DocumentChunkDto>> GetChunksByDocumentIdAsync(int documentId);
     }
 }

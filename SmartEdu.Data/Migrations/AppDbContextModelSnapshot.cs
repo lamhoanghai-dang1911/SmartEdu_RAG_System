@@ -186,6 +186,53 @@ namespace SmartEdu.Data.Migrations
                     b.ToTable("DocumentChunks");
                 });
 
+            modelBuilder.Entity("SmartEdu.Shared.Entities.DocumentLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DocumentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LogMessage")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId");
+
+                    b.ToTable("DocumentLog", (string)null);
+                });
+
+            modelBuilder.Entity("SmartEdu.Shared.Entities.LecturerSubject", b =>
+                {
+                    b.Property<int>("LecturerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubjectId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsLeader")
+                        .HasColumnType("bit");
+
+                    b.HasKey("LecturerId", "SubjectId");
+
+                    b.HasIndex("SubjectId");
+
+                    b.ToTable("LecturerSubject", (string)null);
+                });
+
             modelBuilder.Entity("SmartEdu.Shared.Entities.StudentSubject", b =>
                 {
                     b.Property<int>("StudentId")
@@ -241,6 +288,10 @@ namespace SmartEdu.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -252,8 +303,14 @@ namespace SmartEdu.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("RequirePasswordChange")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Role")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("StudentCode")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Username")
@@ -307,6 +364,36 @@ namespace SmartEdu.Data.Migrations
                     b.Navigation("Document");
                 });
 
+            modelBuilder.Entity("SmartEdu.Shared.Entities.DocumentLog", b =>
+                {
+                    b.HasOne("SmartEdu.Shared.Entities.Document", "Document")
+                        .WithMany("Logs")
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Document");
+                });
+
+            modelBuilder.Entity("SmartEdu.Shared.Entities.LecturerSubject", b =>
+                {
+                    b.HasOne("SmartEdu.Shared.Entities.User", "Lecturer")
+                        .WithMany()
+                        .HasForeignKey("LecturerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SmartEdu.Shared.Entities.Subject", "Subject")
+                        .WithMany()
+                        .HasForeignKey("SubjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Lecturer");
+
+                    b.Navigation("Subject");
+                });
+
             modelBuilder.Entity("SmartEdu.Shared.Entities.StudentSubject", b =>
                 {
                     b.HasOne("SmartEdu.Shared.Entities.User", "User")
@@ -334,6 +421,8 @@ namespace SmartEdu.Data.Migrations
             modelBuilder.Entity("SmartEdu.Shared.Entities.Document", b =>
                 {
                     b.Navigation("Chunks");
+
+                    b.Navigation("Logs");
                 });
 
             modelBuilder.Entity("SmartEdu.Shared.Entities.Subject", b =>

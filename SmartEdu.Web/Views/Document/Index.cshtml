@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Tài liệu";
 }
+
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2>📄 Danh sách tài liệu</h2>
@@ -9,7 +10,23 @@
         {
             <a asp-action="Upload" class="btn btn-primary">⬆️ Upload tài liệu</a>
         }
-        
+    </div>
+
+    <div class="modal fade" id="documentLogModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Log Embedding</h5>
+                    <button type="button" class="btn-close" id="modalCloseBtn" aria-label="Close" disabled></button>
+                </div>
+                <div class="modal-body">
+                    <div id="logContainer" style="max-height:60vh; overflow:auto; font-family: monospace; background: #212529; color: #f8f9fa; padding: 10px;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="modalFooterCloseBtn" data-bs-dismiss="modal" disabled>Đóng</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     @if (TempData["Success"] != null)
@@ -28,12 +45,10 @@
         </div>
     }
 
-    @* Filter theo môn học *@
     <form method="get" class="row g-2 mb-3 align-items-center">
         <div class="col-auto">
             <label class="form-label small mb-0">Lọc theo môn</label>
-            <select name="subjectId" asp-items="ViewBag.Subjects"
-                    class="form-select" onchange="this.form.submit()">
+            <select name="subjectId" asp-items="ViewBag.Subjects" class="form-select" onchange="this.form.submit()">
                 <option value="">-- Tất cả môn học --</option>
             </select>
         </div>
@@ -60,11 +75,7 @@
                     <td>@d.Id</td>
                     <td>@d.Title</td>
                     <td><small>@d.FileName</small></td>
-                    <td>
-                        <span class="badge bg-secondary">
-                            @d.FileType.ToUpper()
-                        </span>
-                    </td>
+                    <td><span class="badge bg-secondary">@d.FileType.ToUpper()</span></td>
                     <td>@($"{d.FileSize / 1024.0:F1}") KB</td>
                     <td>@d.SubjectName</td>
                     <td>
@@ -83,22 +94,21 @@
                     <td>@d.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
                     <td>
                         <a asp-action="Details" asp-route-id="@d.Id" class="btn btn-sm btn-info" title="Xem chi tiết">🔍</a>
-    
-                        <a asp-action="Download" asp-route-id="@d.Id" class="btn btn-sm btn-primary" title="Tải file gốc về máy">⬇️ Tải về</a>
-
+                        <a asp-action="Download" asp-route-id="@d.Id" class="btn btn-sm btn-primary" title="Tải file gốc">⬇️</a>
+                        <button type="button" class="btn btn-sm btn-secondary me-1" title="Xem các mảnh nội dung (Chunks)" onclick="showChunks(@(d.Id))">🧩</button>
                         @if (User.IsInRole("Lecturer") || User.IsInRole("Admin"))
                         {
                             <a asp-action="Edit" asp-route-id="@d.Id" class="btn btn-sm btn-warning" title="Sửa tiêu đề">✏️</a>
-
-                            <form asp-action="TriggerEmbedding" asp-route-id="@d.Id" method="post" class="d-inline">
+                            @if (d.Status != SmartEdu.Shared.Enums.DocumentStatus.Ready)
+                            {
+                                <form asp-action="TriggerEmbedding" asp-route-id="@d.Id" method="post" class="d-inline trigger-form" data-document-id="@d.Id">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-success" title="Kích hoạt Embedding">⚡</button>
+                                </form>
+                            }
+                            <form asp-action="Delete" asp-route-id="@d.Id" method="post" class="d-inline" onsubmit="return confirm('Xóa tài liệu này?');">
                                 @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-success" title="Kích hoạt Embedding">⚡</button>
-                            </form>
-
-                            <form asp-action="Delete" asp-route-id="@d.Id" method="post" class="d-inline"
-                                  onsubmit="return confirm('Xóa tài liệu này? Nếu muốn thay file, hãy xóa và upload lại.');">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-danger" title="Xóa tài liệu">🗑️</button>
+                                <button type="submit" class="btn btn-sm btn-danger" title="Xóa">🗑️</button>
                             </form>
                         }
                     </td>
@@ -106,4 +116,184 @@
             }
         </tbody>
     </table>
+
+    <!-- Chunks Modal -->
+    <div class="modal fade" id="chunkDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Chi tiết nội dung tài liệu (Chunks)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="chunkList" class="list-group" style="max-height:60vh; overflow-y:auto;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const modalEl = document.getElementById('documentLogModal');
+            // prevent closing by backdrop or ESC while embedding runs
+            const myModal = new window.bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+            let intervalId = null;
+
+            function stopInterval() {
+                if (intervalId) { clearInterval(intervalId); intervalId = null; }
+            }
+
+            function enableClose() {
+                const btn = document.getElementById('modalCloseBtn');
+                const footerBtn = document.getElementById('modalFooterCloseBtn');
+                if (btn) btn.removeAttribute('disabled');
+                if (footerBtn) footerBtn.removeAttribute('disabled');
+                // ensure buttons will dismiss the modal
+                if (btn) btn.setAttribute('data-bs-dismiss', 'modal');
+                if (footerBtn) footerBtn.setAttribute('data-bs-dismiss', 'modal');
+                // also ensure clicking will call hide if needed
+                [btn, footerBtn].forEach(b => {
+                    if (!b) return;
+                    b.addEventListener('click', function (e) {
+                        if (this.hasAttribute('disabled')) {
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
+                            return false;
+                        }
+                        try { myModal.hide(); } catch (_) { }
+                    });
+                });
+            }
+
+            async function fetchAndRender(documentId) {
+                try {
+                    const resp = await fetch(`/Document/GetLogs?documentId=${documentId}`);
+                    if (!resp.ok) return;
+
+                    const logs = await resp.json();
+                    const container = document.getElementById('logContainer');
+
+                    function parseIsoToDate(s) {
+                        if (!s) return null;
+                        let str = String(s).trim();
+                        // truncate fractional seconds to milliseconds to avoid Invalid Date in some browsers
+                        str = str.replace(/(\.\d{3})\d+/, '$1');
+                        // If timestamp has no timezone (no Z or +/-HH:mm), assume server sent UTC and append Z
+                        if (/^\d{4}-\d{2}-\d{2}T/.test(str) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(str)) {
+                            str = str + 'Z';
+                        }
+                        const d = new Date(str);
+                        return isNaN(d) ? null : d;
+                    }
+
+                    container.innerHTML = logs.map(l => {
+                        const date = parseIsoToDate(l.timestamp || l.Timestamp);
+                        const ts = date ? date.toLocaleTimeString() : 'Invalid Date';
+                        const status = l.status || l.Status || 'Unknown';
+                        const msg = l.logMessage || l.LogMessage || '';
+                        return `<div>[${ts}] <strong>${status}</strong>: ${msg}</div>`;
+                    }).join('');
+
+                    container.scrollTop = container.scrollHeight;
+
+                    // determine if embedding finished by checking statuses or messages
+                    const finished = logs.some(l => {
+                        const st = (l.status || l.Status || '').toString();
+                        const msg = (l.logMessage || l.LogMessage || '').toString();
+                        if (st === 'Ready' || st === 'Failed' || st === 'Error') return true;
+                        if (/status set to\s*Ready/i.test(msg)) return true;
+                        if (/status set to\s*Failed/i.test(msg)) return true;
+                        if (/status set to\s*Error/i.test(msg)) return true;
+                        return false;
+                    });
+                    if (finished) {
+                        stopInterval();
+                        enableClose();
+                    }
+                } catch (e) { console.error(e); }
+            }
+
+            document.querySelectorAll('.trigger-form').forEach(form => {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    const docId = this.getAttribute('data-document-id');
+                    const url = this.getAttribute('action');
+
+                    myModal.show();
+                    document.getElementById('logContainer').innerHTML = "<em>Đang kết nối tới server...</em>";
+
+                    stopInterval();
+                    // disable close buttons while starting
+                    document.getElementById('modalCloseBtn').setAttribute('disabled', 'disabled');
+                    document.getElementById('modalFooterCloseBtn').setAttribute('disabled', 'disabled');
+                    intervalId = setInterval(() => fetchAndRender(docId), 2000);
+                    fetchAndRender(docId);
+
+                    fetch(url, {
+                        method: 'POST',
+                        headers: { 'RequestVerificationToken': this.querySelector('input[name="__RequestVerificationToken"]').value }
+                    }).catch(err => console.error(err));
+                });
+            });
+
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                stopInterval();
+                // when user closes modal after embedding finished, reload documents page
+                location.href = '/Document';
+            });
+
+            // ensure close buttons trigger hide only when enabled; reload handled on hidden event
+            const footerClose = document.getElementById('modalFooterCloseBtn');
+            const headerClose = document.getElementById('modalCloseBtn');
+            [footerClose, headerClose].forEach(b => {
+                if (b) b.addEventListener('click', function (e) {
+                    if (this.hasAttribute('disabled')) {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        return false;
+                    }
+                    // allow normal dismissal; page reload is handled on hidden event
+                });
+            });
+
+            // ----- Chunks UI -----
+            window.showChunks = async function (documentId) {
+                try {
+                    const resp = await fetch(`/Document/GetDocumentChunks?documentId=${documentId}`);
+                    if (!resp.ok) {
+                        console.error('Failed to load chunks', resp.status);
+                        return;
+                    }
+                    const chunks = await resp.json();
+                    const list = document.getElementById('chunkList');
+                    list.innerHTML = '';
+                    if (!chunks || chunks.length === 0) {
+                        list.innerHTML = '<div class="list-group-item">No chunks found.</div>';
+                    } else {
+                        chunks.sort((a,b)=>a.chunkIndex - b.chunkIndex);
+                        for (const c of chunks) {
+                            const item = document.createElement('div');
+                            item.className = 'list-group-item';
+                            const idx = document.createElement('div');
+                            idx.innerHTML = `<strong>Chunk ${c.chunkIndex}</strong>`;
+                            const content = document.createElement('div');
+                            content.style.whiteSpace = 'pre-wrap';
+                            content.style.marginTop = '6px';
+                            content.textContent = c.content;
+                            item.appendChild(idx);
+                            item.appendChild(content);
+                            list.appendChild(item);
+                        }
+                    }
+                    const modal = new bootstrap.Modal(document.getElementById('chunkDetailsModal'));
+                    modal.show();
+                } catch (e) { console.error(e); }
+            };
+        });
+    </script>
+}

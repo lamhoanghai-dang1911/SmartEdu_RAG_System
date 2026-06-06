@@ -126,6 +126,11 @@
                 <span class="fs-4 me-2" aria-hidden="true">👥</span> Quản lý tài khoản
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link fs-5 px-3 d-flex align-items-center" asp-controller="LecturerManagement" asp-action="Index">
+                <span class="fs-4 me-2" aria-hidden="true">🧑‍🏫</span> Quản lý giảng viên
+            </a>
+        </li>
     }
 
     @if (User.IsInRole("Lecturer") || User.IsInRole("Admin"))

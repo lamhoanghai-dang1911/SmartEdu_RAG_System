@@ -16,5 +16,6 @@ namespace SmartEdu.Shared.Entities
         public Subject Subject { get; set; } = null!;
 
         public ICollection<DocumentChunk> Chunks { get; set; } = new List<DocumentChunk>();
+        public ICollection<DocumentLog> Logs { get; set; } = new List<DocumentLog>();
     }
 }

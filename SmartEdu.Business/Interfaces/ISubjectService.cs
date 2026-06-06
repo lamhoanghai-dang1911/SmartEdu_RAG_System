@@ -14,5 +14,9 @@ namespace SmartEdu.Business.Interfaces
         Task AssignStudentToSubject(int studentId, int subjectId);
         Task RemoveStudentFromSubject(int studentId, int subjectId);
         Task<(IEnumerable<UserDto> Enrolled, IEnumerable<UserDto> NotEnrolled)> GetStudentEnrollmentStatus(int subjectId);
+        Task ImportStudentsAsync(int subjectId, List<StudentImportDto> importedStudents);
+        Task AssignLecturerToSubject(AssignLecturerDto dto);
+        Task<bool> CanUploadDocument(int lecturerId, int subjectId);
+        Task RemoveLecturerFromSubject(int lecturerId, int subjectId);
     }
 }

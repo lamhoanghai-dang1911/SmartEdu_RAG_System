@@ -34,6 +34,8 @@
             </select>
         </div>
 
+    <div id="uploadPermissionAlert" class="alert alert-danger" style="display:none;"></div>
+
         <div class="mb-3">
             <label class="form-label">File (PDF hoặc DOCX)</label>
             <input name="file" type="file" class="form-control"
@@ -41,9 +43,50 @@
             <div class="form-text">Chỉ hỗ trợ .pdf và .docx</div>
         </div>
 
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" id="uploadBtn" class="btn btn-primary" disabled>
             💾 Upload
         </button>
         <a asp-action="Index" class="btn btn-secondary">← Quay lại</a>
     </form>
 </div>
+
+@section Scripts {
+    <script>
+        (function(){
+            const select = document.querySelector('select[name="subjectId"]');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const alertEl = document.getElementById('uploadPermissionAlert');
+
+            async function check(subjectId) {
+                if (!subjectId) {
+                    uploadBtn.setAttribute('disabled','disabled');
+                    alertEl.style.display = 'none';
+                    return;
+                }
+                try {
+                    const resp = await fetch(`/Document/CanUpload?subjectId=${subjectId}`, { credentials: 'same-origin', cache: 'no-store', headers: { 'Accept': 'application/json' } });
+                    if (!resp.ok) {
+                        uploadBtn.setAttribute('disabled','disabled');
+                        alertEl.style.display = 'none';
+                        return;
+                    }
+                    const j = await resp.json();
+                    if (j.canUpload) {
+                        uploadBtn.removeAttribute('disabled');
+                        alertEl.style.display = 'none';
+                    } else {
+                        uploadBtn.setAttribute('disabled','disabled');
+                        alertEl.textContent = j.message || 'Bạn không có quyền upload tài liệu cho môn này. Chỉ trưởng môn được phép.';
+                        alertEl.style.display = 'block';
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            select.addEventListener('change', function(){ check(this.value); });
+            // initial check if a subject preselected (small delay to ensure items bound)
+            if (select.value) setTimeout(()=>check(select.value), 150);
+        })();
+    </script>
+}

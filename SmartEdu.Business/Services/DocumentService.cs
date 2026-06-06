@@ -3,6 +3,7 @@ using SmartEdu.Business.Interfaces;
 using SmartEdu.Data.Repositories;
 using SmartEdu.Shared.Entities;
 using SmartEdu.Shared.Enums;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text;
@@ -21,19 +22,40 @@ public class DocumentService : IDocumentService
     private readonly IRepository<StudentSubject> _studentSubjectRepo;
     private readonly IHttpClientFactory _httpFactory;
     private readonly IConfiguration _configuration;
+    private readonly IUnitOfWork _uow;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public DocumentService(
     IRepository<EntityDocument> docRepo,
     IRepository<DocumentChunk> chunkRepo,
     IRepository<StudentSubject> studentSubjectRepo,
     IHttpClientFactory httpFactory,
-    IConfiguration configuration)
+    IConfiguration configuration,
+    IUnitOfWork uow,
+    IServiceScopeFactory scopeFactory)
     {
         _docRepo = docRepo;
         _chunkRepo = chunkRepo;
         _studentSubjectRepo = studentSubjectRepo;
         _httpFactory = httpFactory;
         _configuration = configuration;
+        _uow = uow;
+        _scopeFactory = scopeFactory;
+    }
+
+    public async Task<IEnumerable<SmartEdu.Shared.DTOs.DocumentChunkDto>> GetChunksByDocumentIdAsync(int documentId)
+    {
+        var chunks = await _chunkRepo.GetAllAsync(c => c.DocumentId == documentId);
+        var doc = await _docRepo.GetByIdAsync(documentId);
+        var title = doc?.Title ?? string.Empty;
+        return chunks
+            .OrderBy(c => c.ChunkIndex)
+            .Select(c => new SmartEdu.Shared.DTOs.DocumentChunkDto
+            {
+                ChunkIndex = c.ChunkIndex,
+                Content = c.Content,
+                DocumentTitle = title
+            });
     }
 
     public async Task<IEnumerable<DocumentDto>> GetAllAsync(int? subjectId = null)
@@ -188,8 +210,13 @@ public class DocumentService : IDocumentService
             string modelUrl = "https://router.huggingface.co/hf-inference/models/intfloat/multilingual-e5-base/pipeline/feature-extraction";
 
             int idx = 0;
+            var batchSize = 5;
+            var pendingCount = 0;
             foreach (var text in chunks)
             {
+                // Save per-chunk log before calling external service
+                await SaveLogAsync(documentId, $"Processing chunk {idx}", "Processing");
+
                 string formattedText = $"passage: {text}";
                 var payload = new { inputs = formattedText };
                 var json = JsonSerializer.Serialize(payload);
@@ -230,14 +257,30 @@ public class DocumentService : IDocumentService
                     CreatedAt = DateTime.UtcNow
                 };
 
+                // add to repo and flush in batches to reduce IO
                 await _chunkRepo.AddAsync(chunkEntity);
+                pendingCount++;
+                if (pendingCount >= batchSize)
+                {
+                    await _chunkRepo.SaveChangesAsync();
+                    pendingCount = 0;
+                }
+
+                // Log successful chunk embedding
+                await SaveLogAsync(documentId, $"Chunk {chunkEntity.ChunkIndex} embedded successfully", "Info");
+
                 await Task.Delay(300);
             }
-
-            await _chunkRepo.SaveChangesAsync();
+            // flush remaining pending chunks
+            if (pendingCount > 0)
+            {
+                await _chunkRepo.SaveChangesAsync();
+            }
+            await SaveLogAsync(documentId, "All chunks saved", "Info");
             doc.Status = DocumentStatus.Ready;
             doc.UpdatedAt = DateTime.UtcNow;
             _docRepo.Update(doc);
+            await SaveLogAsync(documentId, "Document status set to Ready", "Info");
             await _docRepo.SaveChangesAsync();
         }
         catch (Exception)
@@ -246,7 +289,45 @@ public class DocumentService : IDocumentService
             doc.UpdatedAt = DateTime.UtcNow;
             _docRepo.Update(doc);
             await _docRepo.SaveChangesAsync();
+            await SaveLogAsync(documentId, "Document processing failed", "Error");
             throw;
+        }
+    }
+
+    private async Task SaveLogAsync(int documentId, string message, string status)
+    {
+        try
+        {
+            if (_scopeFactory == null)
+            {
+                // fallback: try via unit of work
+                var log = new DocumentLog
+                {
+                    DocumentId = documentId,
+                    LogMessage = message,
+                    Timestamp = DateTime.UtcNow,
+                    Status = status
+                };
+                await _uow.DocumentLogs.AddAsync(log);
+                await _uow.SaveChangesAsync();
+                return;
+            }
+
+            using var scope = _scopeFactory.CreateScope();
+            var ctx = scope.ServiceProvider.GetRequiredService<SmartEdu.Data.AppDbContext>();
+            var log2 = new DocumentLog
+            {
+                DocumentId = documentId,
+                LogMessage = message,
+                Timestamp = DateTime.UtcNow,
+                Status = status
+            };
+            ctx.DocumentLogs.Add(log2);
+            await ctx.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to save document log: {ex}");
         }
     }
     private static string ExtractTextFromDocx(string path)

@@ -13,6 +13,8 @@ namespace SmartEdu.Data
         public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
         public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
         public DbSet<User> Users => Set<User>();
+        public DbSet<LecturerSubject> LecturerSubjects { get; set; }
+        public DbSet<DocumentLog> DocumentLogs { get; set; }
         public DbSet<StudentSubject> StudentSubjects { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -42,6 +44,17 @@ namespace SmartEdu.Data
                 .HasOne(ss => ss.Subject)
                 .WithMany() 
                 .HasForeignKey(ss => ss.SubjectId);
+            modelBuilder.Entity<LecturerSubject>()
+                .HasKey(ls => new { ls.LecturerId, ls.SubjectId });
+            // The migration created table name "LecturerSubject" (singular).
+            // Ensure EF maps the entity to that exact table name to avoid pluralization mismatch.
+            modelBuilder.Entity<LecturerSubject>().ToTable("LecturerSubject");
+            modelBuilder.Entity<DocumentLog>().ToTable("DocumentLog");
+            modelBuilder.Entity<DocumentLog>()
+                .HasOne(d => d.Document)
+                .WithMany(d => d.Logs)
+                .HasForeignKey(d => d.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             base.OnModelCreating(modelBuilder);
         }

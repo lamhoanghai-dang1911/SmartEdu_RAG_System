@@ -4,6 +4,7 @@ using SmartEdu.Data.Repositories;
 using SmartEdu.Shared.DTOs;
 using SmartEdu.Shared.Entities;
 using SmartEdu.Shared.Enums;
+using SmartEdu.Shared.Helpers;
 
 namespace SmartEdu.Business.Services
 {
@@ -12,12 +13,84 @@ namespace SmartEdu.Business.Services
         private readonly IRepository<Subject> _repo;
         private readonly IRepository<StudentSubject> _studentSubjectRepo;
         private readonly IRepository<User> _userRepo;
+        private readonly IEmailService _emailService;
+        private readonly IUnitOfWork _uow;
 
-        public SubjectService(IRepository<Subject> repo, IRepository<StudentSubject> studentSubjectRepo, IRepository<User> userRepo)
+        public SubjectService(IRepository<Subject> repo, IRepository<StudentSubject> studentSubjectRepo, IRepository<User> userRepo, IUnitOfWork uow, IEmailService emailService)
         {
             _repo = repo;
             _studentSubjectRepo = studentSubjectRepo;
             _userRepo = userRepo;
+            _uow = uow;
+            _emailService = emailService;
+        }
+
+        public async Task AssignLecturerToSubject(Shared.DTOs.AssignLecturerDto dto)
+        {
+            if (dto == null) throw new ArgumentNullException(nameof(dto));
+
+            var subject = await _uow.Subjects.GetByIdAsync(dto.SubjectId);
+            if (subject == null || subject.IsDeleted)
+                throw new InvalidOperationException("Không tìm thấy môn học.");
+
+            await _uow.BeginTransactionAsync();
+            try
+            {
+                // find existing relation if any
+                var existing = await _uow.LecturerSubjects.GetAllAsync();
+                var item = existing.FirstOrDefault(ls => ls.LecturerId == dto.LecturerId && ls.SubjectId == dto.SubjectId);
+
+                if (item == null)
+                {
+                    await _uow.LecturerSubjects.AddAsync(new LecturerSubject
+                    {
+                        LecturerId = dto.LecturerId,
+                        SubjectId = dto.SubjectId,
+                        IsLeader = dto.IsLeader
+                    });
+                }
+                else
+                {
+                    item.IsLeader = dto.IsLeader;
+                    _uow.LecturerSubjects.Update(item);
+                }
+
+                // If marking as leader, demote other leaders of this subject
+                if (dto.IsLeader)
+                {
+                    var leaders = existing.Where(ls => ls.SubjectId == dto.SubjectId && ls.IsLeader && ls.LecturerId != dto.LecturerId).ToList();
+                    foreach (var l in leaders)
+                    {
+                        l.IsLeader = false;
+                        _uow.LecturerSubjects.Update(l);
+                    }
+                }
+
+                await _uow.SaveChangesAsync();
+                await _uow.CommitTransactionAsync();
+            }
+            catch (Exception)
+            {
+                await _uow.RollbackTransactionAsync();
+                throw;
+            }
+        }
+
+        public async Task<bool> CanUploadDocument(int lecturerId, int subjectId)
+        {
+            var rels = await _uow.LecturerSubjects.GetAllAsync();
+            var item = rels.FirstOrDefault(ls => ls.LecturerId == lecturerId && ls.SubjectId == subjectId && ls.IsLeader);
+            return item != null;
+        }
+
+        public async Task RemoveLecturerFromSubject(int lecturerId, int subjectId)
+        {
+            var rels = await _uow.LecturerSubjects.GetAllAsync();
+            var item = rels.FirstOrDefault(ls => ls.LecturerId == lecturerId && ls.SubjectId == subjectId);
+            if (item == null) return;
+
+            _uow.LecturerSubjects.Delete(item);
+            await _uow.SaveChangesAsync();
         }
 
         public async Task<IEnumerable<SubjectDto>> GetAllAsync()
@@ -164,6 +237,98 @@ namespace SmartEdu.Business.Services
                 });
 
             return (Enrolled: enrolledDtos, NotEnrolled: notEnrolledDtos);
+        }
+
+        public async Task ImportStudentsAsync(int subjectId, List<StudentImportDto> importedStudents)
+        {
+            if (importedStudents == null || !importedStudents.Any()) return;
+
+            var subject = await _uow.Subjects.GetByIdAsync(subjectId);
+            if (subject == null || subject.IsDeleted)
+                throw new InvalidOperationException("Không tìm thấy môn học.");
+
+            await _uow.BeginTransactionAsync();
+
+            try
+            {
+                var importedEmails = importedStudents.Select(s => s.Email.Trim().ToLower()).ToList();
+                var importedCodes = importedStudents.Select(s => s.StudentCode.Trim().ToUpper()).ToList();
+
+                var existingUsers = await _uow.Users.GetAllAsync(u =>
+                    !u.IsDeleted && (importedEmails.Contains(u.Email.ToLower()) || importedCodes.Contains(u.StudentCode.ToUpper()))
+                );
+
+                var existingEmails = existingUsers.Select(u => u.Email.ToLower()).ToHashSet();
+                var existingCodes = existingUsers.Select(u => u.StudentCode?.ToUpper()).ToHashSet();
+
+                var newUsersToInsert = new List<User>();
+                var generatedAccountsLog = new List<(string Email, string FullName, string Username, string PlainPassword)>();
+
+                foreach (var student in importedStudents)
+                {
+                    if (!existingEmails.Contains(student.Email.Trim().ToLower()) &&
+                        !existingCodes.Contains(student.StudentCode.Trim().ToUpper()))
+                    {
+                        string username = ImportHelper.GenerateUsername(student.FullName, student.StudentCode);
+                        string plainPassword = ImportHelper.GenerateRandomPassword(15);
+
+                        newUsersToInsert.Add(new User
+                        {
+                            Username = username,
+                            FullName = student.FullName.Trim(),
+                            Email = student.Email.Trim().ToLower(),
+                            StudentCode = student.StudentCode.Trim().ToUpper(),
+                            Role = UserRole.Student,
+                            PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword),
+                            RequirePasswordChange = true,
+                        });
+
+                        generatedAccountsLog.Add((student.Email, student.FullName, username, plainPassword));
+                    }
+                }
+
+                if (newUsersToInsert.Any())
+                {
+                    foreach (var user in newUsersToInsert) await _uow.Users.AddAsync(user);
+                    await _uow.SaveChangesAsync();
+                }
+
+                var allStudentIds = existingUsers.Select(u => u.Id)
+                                             .Concat(newUsersToInsert.Select(u => u.Id))
+                                             .ToList();
+
+                var currentEnrollments = await _uow.StudentSubjects.GetAllAsync(ss => ss.SubjectId == subjectId);
+                var enrolledStudentIds = currentEnrollments.Select(ss => ss.StudentId).ToHashSet();
+
+                foreach (var studentId in allStudentIds)
+                {
+                    if (!enrolledStudentIds.Contains(studentId))
+                    {
+                        await _uow.StudentSubjects.AddAsync(new StudentSubject { StudentId = studentId, SubjectId = subjectId });
+                    }
+                }
+
+                await _uow.SaveChangesAsync();
+                await _uow.CommitTransactionAsync();
+
+                foreach (var account in generatedAccountsLog)
+                {
+                    try
+                    {
+                        await _emailService.SendWelcomeEmailAsync(
+                            account.Email, account.FullName, account.Username, account.PlainPassword);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Lỗi gửi mail cho {account.Email}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                await _uow.RollbackTransactionAsync();
+                throw;
+            }
         }
     }
 }

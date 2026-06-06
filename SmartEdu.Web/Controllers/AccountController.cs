@@ -11,10 +11,12 @@ namespace SmartEdu.Web.Controllers
     public class AccountController : Controller
     {
         private readonly IAccountService _accountService;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public AccountController(IAccountService accountService)
+        public AccountController(IAccountService accountService, IUnitOfWork unitOfWork)
         {
             _accountService = accountService;
+            _unitOfWork = unitOfWork;
         }
 
         [HttpGet]
@@ -55,6 +57,56 @@ namespace SmartEdu.Web.Controllers
         {
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction("Login");
+        }
+
+        [HttpGet]
+        public IActionResult ChangePassword()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangePassword(SmartEdu.Shared.DTOs.ChangePasswordDto dto)
+        {
+            if (!ModelState.IsValid) return View(dto);
+
+            var userIdClaim = User.FindFirst("UserId")?.Value;
+            if (!int.TryParse(userIdClaim, out var userId))
+            {
+                return RedirectToAction("Login");
+            }
+
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null) return RedirectToAction("Login");
+
+            // Verify old password
+            if (!BCrypt.Net.BCrypt.Verify(dto.OldPassword ?? string.Empty, user.PasswordHash))
+            {
+                ModelState.AddModelError(string.Empty, "Mật khẩu cũ không đúng.");
+                return View(dto);
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.NewPassword) || dto.NewPassword.Length < 8)
+            {
+                ModelState.AddModelError("NewPassword", "Mật khẩu mới phải có ít nhất 8 ký tự.");
+                return View(dto);
+            }
+
+            if (dto.NewPassword != dto.ConfirmPassword)
+            {
+                ModelState.AddModelError("ConfirmPassword", "Mật khẩu xác nhận không khớp.");
+                return View(dto);
+            }
+
+            // Hash and save new password
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            user.RequirePasswordChange = false;
+            _unitOfWork.Users.Update(user);
+            await _unitOfWork.SaveChangesAsync();
+
+            TempData["Success"] = "Đổi mật khẩu thành công.";
+            return RedirectToAction("Index", "Home");
         }
 
         public IActionResult AccessDenied()
