@@ -15,6 +15,20 @@ Hệ thống hỗ trợ học tập thông minh dựa trên kiến trúc **RAG (
 
 ---
 
+## Khởi tạo Cơ sở dữ liệu
+Dự án cung cấp sẵn file Script SQL chứa đầy đủ cấu trúc bảng và dữ liệu mẫu (Tài khoản, phân quyền, dữ liệu tài liệu test).
+
+1. Mở phần mềm SQL Server Management Studio (SSMS) và kết nối vào Server của bạn.
+2. Tìm đến tệp tin script nằm tại đường dẫn: Database/script.sql
+3. Đảm bảo đã chọn đúng môi trường, nhấp nút Execute (F5) trên thanh công cụ để khởi chạy. Quá trình này sẽ thiết lập cấu trúc bảng cùng toàn bộ dữ liệu thực nghiệm đầu vào.
+4. Mở file `appsettings.json` trong dự án `SmartEdu.Web` và cấu hình lại chuỗi kết nối `DefaultConnection` sao cho khớp với thông tin SQL Server trên máy của bạn:
+
+## Cấu hình API Key bảo mật (User Secrets)
+1. Nhấp chuột phải vào project SmartEdu.Web trong cửa sổ Solution Explorer.
+2. Chọn Manage User Secrets.
+3. Một file secrets.json sẽ hiện ra. Bạn hãy dán đoạn mã sau vào, thay thế bằng Key của bạn và lưu lại
+
+
 ## 📖 Hướng dẫn sử dụng
 
 Hệ thống được thiết kế với 3 nhóm người dùng (Role) riêng biệt, mỗi nhóm sẽ có luồng thao tác và quyền hạn khác nhau:
