@@ -58,5 +58,6 @@ Mỗi câu trả lời đều có chú thích rõ ràng: Được trích xuất 
 
 ACCOUNT SỬ DỤNG: student/123
 
+SƠ ĐỒ KIẾN TRÚC:
 <img width="667" height="679" alt="image" src="https://github.com/user-attachments/assets/25dbecd1-bfbd-427a-a33d-50061902950e" />
 
